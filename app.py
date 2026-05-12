@@ -31,14 +31,6 @@ st.set_page_config(page_title="Selva Motors Attendance", layout="wide")
 
 
 
-# ---------------- FILES ----------------
-
-ATTENDANCE_FILE = "attendance.xlsx"
-
-SERVICE_FILE = "service_report.xlsx"
-
-
-
 # ---------------- LOGIN DATA ----------------
 
 staff_users = {
