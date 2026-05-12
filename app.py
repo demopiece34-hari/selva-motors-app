@@ -1,3 +1,22 @@
+import gspread
+from google.oauth2.service_account import Credentials
+
+scope = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive"
+]
+
+creds = Credentials.from_service_account_file(
+    "service_account.json",
+    scopes=scope
+)
+
+client = gspread.authorize(creds)
+
+sheet = client.open("Selva Motors Attendance")
+
+attendance_sheet = sheet.worksheet("Attendance")
+service_sheet = sheet.worksheet("ServiceReport")
 import streamlit as st
 
 import pandas as pd
