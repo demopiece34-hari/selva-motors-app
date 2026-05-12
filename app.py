@@ -1,31 +1,24 @@
+import streamlit as st
+import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
+from datetime import datetime
 
 scope = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
 ]
 
-creds = Credentials.from_service_account_file(
-    "service_account.json",
+creds = Credentials.from_service_account_info(
+    st.secrets["gcp_service_account"],
     scopes=scope
 )
 
 client = gspread.authorize(creds)
 
 sheet = client.open("Selva Motors Attendance")
-
 attendance_sheet = sheet.worksheet("Attendance")
 service_sheet = sheet.worksheet("ServiceReport")
-import streamlit as st
-
-import pandas as pd
-
-from datetime import datetime
-
-import os
-
-
 
 st.set_page_config(page_title="Selva Motors Attendance", layout="wide")
 
