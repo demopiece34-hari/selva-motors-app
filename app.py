@@ -16,7 +16,10 @@ creds = Credentials.from_service_account_info(
 
 client = gspread.authorize(creds)
 
-sheet = client.open("Selva Motors Attendance.xlsx")
+sheet = client.open_by_url(
+    "YOUR_SHEET_URL"
+)
+
 attendance_sheet = sheet.worksheet("Attendance")
 service_sheet = sheet.worksheet("ServiceReport")
 
