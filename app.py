@@ -17,7 +17,7 @@ creds = Credentials.from_service_account_info(
 client = gspread.authorize(creds)
 
 sheet = client.open_by_url(
-    "YOUR_SHEET_URL"
+    "https://1drv.ms/x/c/1D47BE3BE6A4D83A/IQB2GsbXNyLqSLWGZX-KJhxbARNp2Psy_XlULKiVVb3VgN0"
 )
 
 attendance_sheet = sheet.worksheet("Attendance")
