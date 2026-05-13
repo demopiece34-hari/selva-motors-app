@@ -86,7 +86,10 @@ if menu == "Staff Login":
 
     else:
         staff_id = st.session_state["staff_id"]
-        staff_name = st.session_state["staff_name"]
+        staff_name = st.session_state.get(
+            "staff_name",
+            staff_users.get(staff_id, {}).get("name", "")
+        )
 
         st.success(f"Hii {staff_name}")
 
