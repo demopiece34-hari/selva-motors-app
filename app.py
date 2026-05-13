@@ -196,7 +196,18 @@ if menu == "Staff Login":
                 min_value=0
             )
 
-            if st.button("Save Service Report"):
+            if "service_lock" not in st.session_state:
+                st.session_state["service_lock"] = False
+
+            if st.session_state["service_lock"]:
+                st.warning("Please wait 3 seconds...")
+                time.sleep(3)
+                st.session_state["service_lock"] = False
+                st.rerun()
+
+            if st.button("Save Service Report", disabled=st.session_state["service_lock"]):
+
+                st.session_state["service_lock"] = True
 
                 now = datetime.now()
                 today = now.strftime("%d-%m-%Y")
@@ -216,8 +227,6 @@ if menu == "Staff Login":
                     technician_sheets[staff_name].append_row(row_data)
 
                 st.success("Service Report Saved")
-                st.info("Please wait 3 seconds...")
-                time.sleep(3)
                 st.rerun()
 
         else:
