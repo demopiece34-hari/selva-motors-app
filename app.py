@@ -20,6 +20,24 @@ sheet = client.open_by_url(
     "https://docs.google.com/spreadsheets/d/1lD_M0LUTzXceUV_kc9Q8mEkEt6rs9oXYO-I0Cni0Kfk/edit?usp=drivesdk"
 )
 
+try:
+    attendance_sheet = sheet.worksheet("Attendance")
+except:
+    attendance_sheet = sheet.add_worksheet(
+        title="Attendance",
+        rows="1000",
+        cols="10"
+    )
+
+try:
+    service_sheet = sheet.worksheet("ServiceReport")
+except:
+    service_sheet = sheet.add_worksheet(
+        title="ServiceReport",
+        rows="1000",
+        cols="10"
+    )
+
 attendance_sheet = sheet.worksheet("Attendance")
 service_sheet = sheet.worksheet("ServiceReport")
 
