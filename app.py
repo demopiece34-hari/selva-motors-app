@@ -78,24 +78,27 @@ if menu == "Staff Login":
 
     st.subheader("Staff Login")
 
-    user_id = st.text_input("User ID")
-    password = st.text_input("Password", type="password")
+    if not st.session_state.get("staff_login"):
 
-    if st.button("Login"):
+        user_id = st.text_input("User ID")
+        password = st.text_input("Password", type="password")
 
-        if user_id in staff_users and staff_users[user_id] == password:
+        if st.button("Login"):
 
-            st.success("Login Successful")
+            if user_id in staff_users and staff_users[user_id] == password:
+                st.session_state["staff_login"] = True
+                st.session_state["staff_id"] = user_id
+                st.rerun()
+            else:
+                st.error("Invalid Login")
 
-            st.session_state["staff_login"] = True
-            st.session_state["staff_id"] = user_id
+    else:
+        st.success(f"Logged in as {st.session_state['staff_id']}")
 
-        else:
-            st.error("Invalid Login")
-
-    # ---------------- STAFF PANEL ----------------
-
-    if st.session_state.get("staff_login"):
+        if st.button("Logout"):
+            st.session_state["staff_login"] = False
+            st.session_state["staff_id"] = ""
+            st.rerun()
 
         st.header("Staff Attendance")
 
@@ -122,10 +125,6 @@ if menu == "Staff Login":
             ])
 
             st.success("Attendance Saved")
-
-        # ======================================================
-        # SERVICE ENTRY
-        # ======================================================
 
         st.header("Daily Service Entry")
 
