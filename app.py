@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import gspread
+import time
 from google.oauth2.service_account import Credentials
 from datetime import datetime
 
@@ -22,36 +23,58 @@ sheet = client.open_by_url(
     "https://docs.google.com/spreadsheets/d/1lD_M0LUTzXceUV_kc9Q8mEkEt6rs9oXYO-I0Cni0Kfk/edit?usp=drivesdk"
 )
 
-try:
-    attendance_sheet = sheet.worksheet("Attendance")
-except:
-    attendance_sheet = sheet.add_worksheet("Attendance", rows="1000", cols="10")
+def get_or_create_sheet(sheet_name, headers):
+    try:
+        ws = sheet.worksheet(sheet_name)
+    except:
+        ws = sheet.add_worksheet(title=sheet_name, rows="1000", cols="20")
 
-try:
-    service_sheet = sheet.worksheet("ServiceReport")
-except:
-    service_sheet = sheet.add_worksheet("ServiceReport", rows="1000", cols="10")
+    if ws.row_values(1) == []:
+        ws.append_row(headers)
 
-if attendance_sheet.row_values(1) == []:
-    attendance_sheet.append_row([
-        "Date", "Time", "Staff ID", "Staff Name", "Role", "Status"
-    ])
+    return ws
 
-if service_sheet.row_values(1) == []:
-    service_sheet.append_row([
-        "Date", "Staff ID", "Staff Name",
-        "Bike Name", "Service Type", "Labour Amount"
-    ])
+
+attendance_sheet = get_or_create_sheet(
+    "Attendance",
+    ["Date", "Time", "Staff ID", "Staff Name", "Role", "Status"]
+)
+
+service_sheet = get_or_create_sheet(
+    "ServiceReport",
+    ["Date", "Staff ID", "Staff Name", "Bike Name", "Service Type", "Labour Amount"]
+)
+
+mohan_service_sheet = get_or_create_sheet(
+    "Mohan_Service",
+    ["Date", "Staff ID", "Staff Name", "Bike Name", "Service Type", "Labour Amount"]
+)
+
+ajay_service_sheet = get_or_create_sheet(
+    "Ajay_Service",
+    ["Date", "Staff ID", "Staff Name", "Bike Name", "Service Type", "Labour Amount"]
+)
+
+vegadesh_service_sheet = get_or_create_sheet(
+    "Vegadesh_Service",
+    ["Date", "Staff ID", "Staff Name", "Bike Name", "Service Type", "Labour Amount"]
+)
 
 staff_users = {
-    "Staff1": {"password": "1234", "name": "Mohan"},
-    "Staff2": {"password": "1234", "name": "Ajay"},
-    "Staff3": {"password": "1234", "name": "Prathisha"},
-    "Staff4": {"password": "1234", "name": "Vegadesh"}
+    "Staff1": {"password": "1234", "name": "Mohan", "role": "Technician"},
+    "Staff2": {"password": "1234", "name": "Ajay", "role": "Technician"},
+    "Staff3": {"password": "1234", "name": "Prathisha", "role": "System Staff"},
+    "Staff4": {"password": "1234", "name": "Vegadesh", "role": "Technician"}
 }
 
 admin_user = {
     "admin": "admin123"
+}
+
+technician_sheets = {
+    "Mohan": mohan_service_sheet,
+    "Ajay": ajay_service_sheet,
+    "Vegadesh": vegadesh_service_sheet
 }
 
 st.title("SELVA MOTORS STAFF MANAGEMENT")
@@ -80,31 +103,35 @@ if menu == "Staff Login":
                 st.session_state["staff_login"] = True
                 st.session_state["staff_id"] = user_id
                 st.session_state["staff_name"] = staff_users[user_id]["name"]
+                st.session_state["staff_role"] = staff_users[user_id]["role"]
                 st.rerun()
             else:
                 st.error("Invalid Login")
 
     else:
         staff_id = st.session_state["staff_id"]
+
         staff_name = st.session_state.get(
             "staff_name",
             staff_users.get(staff_id, {}).get("name", "")
         )
 
+        role = st.session_state.get(
+            "staff_role",
+            staff_users.get(staff_id, {}).get("role", "")
+        )
+
         st.success(f"Hii {staff_name}")
+        st.info(f"Role: {role}")
 
         if st.button("Logout"):
             st.session_state["staff_login"] = False
             st.session_state["staff_id"] = ""
             st.session_state["staff_name"] = ""
+            st.session_state["staff_role"] = ""
             st.rerun()
 
         st.header("Staff Attendance")
-
-        role = st.selectbox(
-            "Role",
-            ["Technician", "System Staff"]
-        )
 
         status = st.selectbox(
             "Attendance Status",
@@ -114,17 +141,32 @@ if menu == "Staff Login":
         if st.button("Mark Attendance"):
 
             now = datetime.now()
+            today = now.strftime("%d-%m-%Y")
 
-            attendance_sheet.append_row([
-                now.strftime("%d-%m-%Y"),
-                now.strftime("%H:%M:%S"),
-                staff_id,
-                staff_name,
-                role,
-                status
-            ])
+            attendance_data = attendance_sheet.get_all_records()
+            attendance_df = pd.DataFrame(attendance_data)
 
-            st.success("Attendance Saved")
+            already_marked = False
+
+            if not attendance_df.empty:
+                already_marked = (
+                    (attendance_df["Date"] == today) &
+                    (attendance_df["Staff ID"] == staff_id)
+                ).any()
+
+            if already_marked:
+                st.warning("Today attendance already marked")
+            else:
+                attendance_sheet.append_row([
+                    today,
+                    now.strftime("%H:%M:%S"),
+                    staff_id,
+                    staff_name,
+                    role,
+                    status
+                ])
+
+                st.success("Attendance Saved")
 
         st.header("Daily Service Entry")
 
@@ -157,17 +199,29 @@ if menu == "Staff Login":
             if st.button("Save Service Report"):
 
                 now = datetime.now()
+                today = now.strftime("%d-%m-%Y")
 
-                service_sheet.append_row([
-                    now.strftime("%d-%m-%Y"),
+                row_data = [
+                    today,
                     staff_id,
                     staff_name,
                     bike,
                     service_type,
                     labour
-                ])
+                ]
+
+                service_sheet.append_row(row_data)
+
+                if staff_name in technician_sheets:
+                    technician_sheets[staff_name].append_row(row_data)
 
                 st.success("Service Report Saved")
+                st.info("Please wait 3 seconds...")
+                time.sleep(3)
+                st.rerun()
+
+        else:
+            st.info("System Staff ku service entry illa")
 
 # ======================================================
 # ADMIN LOGIN
@@ -212,7 +266,7 @@ if menu == "Admin Login":
                         "-",
                         sid,
                         info["name"],
-                        "-",
+                        info["role"],
                         "Absent"
                     ])
 
@@ -225,20 +279,40 @@ if menu == "Admin Login":
 
         st.dataframe(attendance_df, use_container_width=True)
 
-        st.header("Service Report")
+        st.header("Overall Service Report")
 
         service_data = service_sheet.get_all_records()
         service_df = pd.DataFrame(service_data)
 
         st.dataframe(service_df, use_container_width=True)
 
+        st.header("Technician Wise Service Report")
+
+        selected_technician = st.selectbox(
+            "Select Technician",
+            ["Mohan", "Ajay", "Vegadesh"]
+        )
+
+        tech_sheet = technician_sheets[selected_technician]
+        tech_data = tech_sheet.get_all_records()
+        tech_df = pd.DataFrame(tech_data)
+
+        st.subheader(f"{selected_technician} Service Entries")
+        st.dataframe(tech_df, use_container_width=True)
+
+        if not tech_df.empty and "Labour Amount" in tech_df.columns:
+            tech_df["Labour Amount"] = pd.to_numeric(
+                tech_df["Labour Amount"],
+                errors="coerce"
+            ).fillna(0)
+
+            tech_total = tech_df["Labour Amount"].sum()
+            st.success(f"{selected_technician} Total Labour Amount: ₹{tech_total}")
+
         st.header("Staff Wise Total Labour Amount")
 
-        if not service_df.empty:
-            if "Labour Amount" not in service_df.columns:
-                st.error("ServiceReport sheet-la 'Labour Amount' column missing. First row header correct pannunga.")
-                st.stop()
-                
+        if not service_df.empty and "Labour Amount" in service_df.columns:
+
             service_df["Labour Amount"] = pd.to_numeric(
                 service_df["Labour Amount"],
                 errors="coerce"
@@ -253,5 +327,6 @@ if menu == "Admin Login":
 
             grand_total = service_df["Labour Amount"].sum()
             st.subheader(f"Overall Total Labour Amount: ₹{grand_total}")
+
         else:
             st.info("No service data available")
