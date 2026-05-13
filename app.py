@@ -25,43 +25,34 @@ sheet = client.open_by_url(
 try:
     attendance_sheet = sheet.worksheet("Attendance")
 except:
-    attendance_sheet = sheet.add_worksheet(
-        title="Attendance",
-        rows="1000",
-        cols="10"
-    )
-    attendance_sheet.append_row([
-        "Date", "Time", "Staff ID",
-        "Staff Name", "Role", "Phone"
-    ])
+    attendance_sheet = sheet.add_worksheet("Attendance", rows="1000", cols="10")
 
 try:
     service_sheet = sheet.worksheet("ServiceReport")
 except:
-    service_sheet = sheet.add_worksheet(
-        title="ServiceReport",
-        rows="1000",
-        cols="10"
-    )
+    service_sheet = sheet.add_worksheet("ServiceReport", rows="1000", cols="10")
+
+if attendance_sheet.row_values(1) == []:
+    attendance_sheet.append_row([
+        "Date", "Time", "Staff ID", "Staff Name", "Role", "Status"
+    ])
+
+if service_sheet.row_values(1) == []:
     service_sheet.append_row([
         "Date", "Staff ID", "Staff Name",
         "Bike Name", "Service Type", "Labour Amount"
     ])
 
-# ---------------- LOGIN DATA ----------------
-
 staff_users = {
-    "staff1": "1234",
-    "staff2": "1234",
-    "staff3": "1234",
-    "staff4": "1234"
+    "Staff1": {"password": "1234", "name": "Mohan"},
+    "Staff2": {"password": "1234", "name": "Ajay"},
+    "Staff3": {"password": "1234", "name": "Prathisha"},
+    "Staff4": {"password": "1234", "name": "Vegadesh"}
 }
 
 admin_user = {
     "admin": "admin123"
 }
-
-# ---------------- TITLE ----------------
 
 st.title("SELVA MOTORS STAFF MANAGEMENT")
 
@@ -85,31 +76,37 @@ if menu == "Staff Login":
 
         if st.button("Login"):
 
-            if user_id in staff_users and staff_users[user_id] == password:
+            if user_id in staff_users and staff_users[user_id]["password"] == password:
                 st.session_state["staff_login"] = True
                 st.session_state["staff_id"] = user_id
+                st.session_state["staff_name"] = staff_users[user_id]["name"]
                 st.rerun()
             else:
                 st.error("Invalid Login")
 
     else:
-        st.success(f"Logged in as {st.session_state['staff_id']}")
+        staff_id = st.session_state["staff_id"]
+        staff_name = st.session_state["staff_name"]
+
+        st.success(f"Hii {staff_name}")
 
         if st.button("Logout"):
             st.session_state["staff_login"] = False
             st.session_state["staff_id"] = ""
+            st.session_state["staff_name"] = ""
             st.rerun()
 
         st.header("Staff Attendance")
-
-        name = st.text_input("Staff Name")
 
         role = st.selectbox(
             "Role",
             ["Technician", "System Staff"]
         )
 
-        phone = st.text_input("Phone Number")
+        status = st.selectbox(
+            "Attendance Status",
+            ["Present", "Half Day Leave"]
+        )
 
         if st.button("Mark Attendance"):
 
@@ -118,10 +115,10 @@ if menu == "Staff Login":
             attendance_sheet.append_row([
                 now.strftime("%d-%m-%Y"),
                 now.strftime("%H:%M:%S"),
-                st.session_state["staff_id"],
-                name,
+                staff_id,
+                staff_name,
                 role,
-                phone
+                status
             ])
 
             st.success("Attendance Saved")
@@ -139,7 +136,8 @@ if menu == "Staff Login":
                     "Xoom",
                     "Glamour",
                     "Xtreme",
-                    "Super Splendor"
+                    "Super Splendor",
+                    "HF Deluxe"
                 ]
             )
 
@@ -159,8 +157,8 @@ if menu == "Staff Login":
 
                 service_sheet.append_row([
                     now.strftime("%d-%m-%Y"),
-                    st.session_state["staff_id"],
-                    name,
+                    staff_id,
+                    staff_name,
                     bike,
                     service_type,
                     labour
@@ -177,25 +175,45 @@ if menu == "Admin Login":
     st.subheader("Admin Login")
 
     admin_id = st.text_input("Admin User ID")
-    admin_pass = st.text_input(
-        "Admin Password",
-        type="password"
-    )
+    admin_pass = st.text_input("Admin Password", type="password")
 
     if st.button("Admin Login"):
 
         if admin_id in admin_user and admin_user[admin_id] == admin_pass:
-
             st.session_state["admin_login"] = True
-
             st.success("Admin Login Successful")
-
         else:
             st.error("Invalid Admin Login")
 
-    # ---------------- ADMIN PANEL ----------------
-
     if st.session_state.get("admin_login"):
+
+        st.header("Admin Dashboard")
+
+        today = datetime.now().strftime("%d-%m-%Y")
+
+        if st.button("Add Today Absent Staff"):
+
+            attendance_data = attendance_sheet.get_all_records()
+            attendance_df = pd.DataFrame(attendance_data)
+
+            today_present_ids = []
+
+            if not attendance_df.empty:
+                today_df = attendance_df[attendance_df["Date"] == today]
+                today_present_ids = today_df["Staff ID"].tolist()
+
+            for sid, info in staff_users.items():
+                if sid not in today_present_ids:
+                    attendance_sheet.append_row([
+                        today,
+                        "-",
+                        sid,
+                        info["name"],
+                        "-",
+                        "Absent"
+                    ])
+
+            st.success("Absent Staff Added Successfully")
 
         st.header("Overall Attendance Report")
 
@@ -204,9 +222,29 @@ if menu == "Admin Login":
 
         st.dataframe(attendance_df, use_container_width=True)
 
-        st.header("Monthly Service Report")
+        st.header("Service Report")
 
         service_data = service_sheet.get_all_records()
         service_df = pd.DataFrame(service_data)
 
         st.dataframe(service_df, use_container_width=True)
+
+        st.header("Staff Wise Total Labour Amount")
+
+        if not service_df.empty:
+            service_df["Labour Amount"] = pd.to_numeric(
+                service_df["Labour Amount"],
+                errors="coerce"
+            ).fillna(0)
+
+            total_df = service_df.groupby(
+                ["Staff ID", "Staff Name"],
+                as_index=False
+            )["Labour Amount"].sum()
+
+            st.dataframe(total_df, use_container_width=True)
+
+            grand_total = service_df["Labour Amount"].sum()
+            st.subheader(f"Overall Total Labour Amount: ₹{grand_total}")
+        else:
+            st.info("No service data available")
