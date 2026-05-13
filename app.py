@@ -235,6 +235,10 @@ if menu == "Admin Login":
         st.header("Staff Wise Total Labour Amount")
 
         if not service_df.empty:
+            if "Labour Amount" not in service_df.columns:
+                st.error("ServiceReport sheet-la 'Labour Amount' column missing. First row header correct pannunga.")
+                st.stop()
+                
             service_df["Labour Amount"] = pd.to_numeric(
                 service_df["Labour Amount"],
                 errors="coerce"
