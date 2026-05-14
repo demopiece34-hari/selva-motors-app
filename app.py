@@ -143,6 +143,11 @@ if menu == "Staff Login":
             attendance_data = attendance_sheet.get_all_records()
             attendance_df = pd.DataFrame(attendance_data)
 
+            if "Date" not in attendance_df.columns:
+                attendance_df = pd.DataFrame(columns=[
+                    "Date", "Time", "Staff ID", "Staff Name", "Role", "Status"
+                ])
+
             already_marked = False
 
             if not attendance_df.empty:
