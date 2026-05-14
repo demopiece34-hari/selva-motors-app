@@ -19,13 +19,28 @@ creds = Credentials.from_service_account_info(
 
 client = gspread.authorize(creds)
 
-try:
-    sheet = client.open_by_key(
-        st.secrets["SHEET_ID"]
-    )
-except Exception as e:
+@st.cache_resource
+def connect_sheet():
+
+    for i in range(3):
+
+        try:
+            client = gspread.authorize(creds)
+
+            sheet = client.open_by_key(
+                st.secrets["SHEET_ID"]
+            )
+
+            return sheet
+
+        except Exception as e:
+
+            time.sleep(2)
+
     st.error("Google Sheet connection failed")
     st.stop()
+
+sheet = connect_sheet()
 
 def get_or_create_sheet(sheet_name, headers):
     try:
