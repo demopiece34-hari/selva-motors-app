@@ -99,7 +99,7 @@ def is_absent_today(today, staff_id):
     return (
         (df["Date"].astype(str) == today) &
         (df["Staff ID"].astype(str) == staff_id) &
-        (df["Status"].astype(str) == "Absent")
+        (df["Status"].astype(str).str.upper() == "ABSENT")
     ).any()
 
 
