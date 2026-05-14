@@ -42,6 +42,11 @@ service_sheet = get_or_create_sheet(
     ["Date", "Staff ID", "Staff Name", "Bike Name", "Service Type", "Labour Amount"]
 )
 
+request_sheet = get_or_create_sheet(
+    "AttendanceRequests",
+    ["Date", "Staff ID", "Staff Name", "Role", "Request Status"]
+)
+
 mohan_service_sheet = get_or_create_sheet(
     "Mohan_Service",
     ["Date", "Staff ID", "Staff Name", "Bike Name", "Service Type", "Labour Amount"]
@@ -74,6 +79,14 @@ technician_sheets = {
     "Vegadesh": vegadesh_service_sheet
 }
 
+def is_absent_today(today, staff_id):
+    df = safe_df(attendance_sheet, ["Date", "Staff ID", "Status"])
+    return (
+        (df["Date"].astype(str) == today) &
+        (df["Staff ID"].astype(str) == staff_id) &
+        (df["Status"].astype(str) == "Absent")
+    ).any()
+    
 st.title("SELVA MOTORS STAFF MANAGEMENT")
 
 menu = st.sidebar.selectbox(
