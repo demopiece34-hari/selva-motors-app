@@ -95,14 +95,6 @@ technician_sheets = {
 
 def is_absent_today(today, staff_id):
     df = safe_df(attendance_sheet, ["Date", "Staff ID", "Status"])
-    return (
-        (df["Date"].astype(str) == today) &
-        (df["Staff ID"].astype(str) == staff_id) &
-        (df["Status"].astype(str) == "Absent")
-    ).any()
-
-def is_absent_today(today, staff_id):
-    df = safe_df(attendance_sheet, ["Date", "Staff ID", "Status"])
 
     return (
         (df["Date"].astype(str) == today) &
@@ -193,12 +185,12 @@ if menu == "Staff Login":
 
         if absent_block and not approved:
 
-            st.error("Admin absent mark pannirukanga. Present poda request anuppunga.")
+            st.error("You are marked absent today. Send request to admin.")
 
             if is_request_pending(today, staff_id):
-                st.info("Request already sent. Admin approval pending.")
+                st.info("Request already sent. Waiting for admin approval.")
             else:
-                if st.button("Request Attendance Open"):
+                if st.button("Send Attendance Request"):
                     request_sheet.append_row([
                         today,
                         staff_id,
@@ -206,61 +198,32 @@ if menu == "Staff Login":
                         role,
                         "Pending"
                     ])
-
                     st.success("Request sent to admin")
+                    st.rerun()
 
         else:
 
-            today = datetime.now().strftime("%d-%m-%Y")
-
-            absent_block = is_absent_today(today, staff_id)
-
-            approved = is_request_approved(today, staff_id)
-
-            if absent_block and not approved:
-
-                st.error("You are marked absent today")
-
-                pending = is_request_pending(today, staff_id)
-
-                if pending:
-                    st.info("Request already sent to admin")
-                else:
-                    if st.button("Send Attendance Request"):
-
-                        request_sheet.append_row([
-                            today,
-                            staff_id,
-                            staff_name,
-                            role,
-                            "Pending"
-                        ])
-
-                        st.success("Request sent to admin")
-
-            else:
-
-                status = st.selectbox(
-                    "Attendance Status",
-                    ["Present", "Half Day Leave"]
-                )
+            status = st.selectbox(
+                "Attendance Status",
+                ["Present", "Half Day Leave"]
+            )
 
             if st.button("Mark Attendance"):
 
                 now = datetime.now()
 
-                attendance_data = attendance_sheet.get_all_records()
-                attendance_df = pd.DataFrame(attendance_data)
+                attendance_df = safe_df(
+                    attendance_sheet,
+                    ["Date", "Staff ID", "Status"]
+                )
 
-                already_marked = False
+                already_marked = (
+                    (attendance_df["Date"].astype(str) == today) &
+                    (attendance_df["Staff ID"].astype(str) == staff_id) &
+                    (attendance_df["Status"].astype(str) != "Absent")
+                ).any()
 
-                if not attendance_df.empty and "Date" in attendance_df.columns and "Staff ID" in attendance_df.columns:
-                    already_marked = (
-                        (attendance_df["Date"].astype(str) == today) &
-                        (attendance_df["Staff ID"].astype(str) == staff_id)
-                    ).any()
-
-                if already_marked and not approved:
+                if already_marked:
                     st.warning("Today attendance already marked")
                 else:
                     attendance_sheet.append_row([
@@ -443,38 +406,6 @@ if menu == "Admin Login":
 
                         st.success("Attendance Approved")
 
-                        st.rerun()
-
-
-        st.header("Overall Attendance Report")
-
-        attendance_data = attendance_sheet.get_all_records()
-        attendance_df = pd.DataFrame(attendance_data)
-
-        st.dataframe(attendance_df, use_container_width=True)
-
-        st.header("Attendance Open Requests")
-
-        request_data = request_sheet.get_all_records()
-        request_df = pd.DataFrame(request_data)
-
-        if request_df.empty:
-            st.info("No attendance requests")
-        else:
-            for i, row in request_df.iterrows():
-
-                if row.get("Date") == today and row.get("Request Status") == "Pending":
-
-                    st.write(
-                        f"{row.get('Staff Name')} ({row.get('Staff ID')}) attendance open request"
-                    )
-
-                    if st.button(
-                        f"Approve {row.get('Staff Name')}",
-                        key=f"approve_{i}"
-                    ):
-                        request_sheet.update_cell(i + 2, 5, "Approved")
-                        st.success("Request Approved")
                         st.rerun()
 
         st.header("Overall Service Report")
