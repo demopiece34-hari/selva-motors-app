@@ -29,8 +29,18 @@ def get_or_create_sheet(sheet_name, headers):
     except:
         ws = sheet.add_worksheet(title=sheet_name, rows="1000", cols="20")
         ws.append_row(headers)
-
     return ws
+
+
+def safe_df(ws, columns):
+    data = ws.get_all_records()
+    df = pd.DataFrame(data)
+
+    for col in columns:
+        if col not in df.columns:
+            df[col] = ""
+
+    return df
 
 attendance_sheet = get_or_create_sheet(
     "Attendance",
