@@ -19,16 +19,9 @@ creds = Credentials.from_service_account_info(
 
 client = gspread.authorize(creds)
 
-try:
-    sheet = client.open("Selva Motors Attendance")
-except:
-    sheet = client.create("Selva Motors Attendance")
-
-    sheet.share(
-        "demopiece34@gmail.com",
-        perm_type="user",
-        role="writer"
-    )
+sheet = client.open_by_key(
+    "1lD_M0LUTzXceUV_kc9Q8mEkEt6rs9oXYO-I0Cni0Kfk"
+)
 
 def get_or_create_sheet(sheet_name, headers):
     try:
