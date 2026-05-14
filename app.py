@@ -103,12 +103,6 @@ admin_user = {
     "admin": "admin123"
 }
 
-technician_sheets = {
-    "Mohan": mohan_service_sheet,
-    "Ajay": ajay_service_sheet,
-    "Vegadesh": vegadesh_service_sheet
-}
-
 def is_absent_today(today, staff_id):
     df = safe_df(attendance_sheet, ["Date", "Staff ID", "Status"])
 
@@ -328,9 +322,6 @@ if menu == "Staff Login":
 
                 service_sheet.append_row(row_data)
 
-                if staff_name in technician_sheets:
-                    technician_sheets[staff_name].append_row(row_data)
-
                 st.success("Service Report Saved")
                 st.rerun()
 
@@ -484,6 +475,29 @@ if menu == "Admin Login":
         st.success(f"Vegadesh : {vegadesh_count} Bikes")
 
         st.warning(f"Total Today Service Bikes : {total_bikes}")
+
+        st.header("Today Technician Labour Total")
+
+        service_df = safe_df(
+            service_sheet,
+            ["Date", "Staff Name", "Labour Amount"]
+        )
+
+        today_df = service_df[
+            service_df["Date"].astype(str) == today
+        ]
+
+        today_df["Labour Amount"] = pd.to_numeric(
+            today_df["Labour Amount"],
+            errors="coerce"
+        ).fillna(0)
+
+        total_df = today_df.groupby(
+            "Staff Name",
+            as_index=False
+        )["Labour Amount"].sum()
+
+        st.dataframe(total_df, use_container_width=True)
 
         st.header("Overall Service Report")
         
