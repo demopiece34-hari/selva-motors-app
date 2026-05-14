@@ -211,10 +211,39 @@ if menu == "Staff Login":
 
         else:
 
-            status = st.selectbox(
-                "Attendance Status",
-                ["Present", "Half Day Leave"]
-            )
+            today = datetime.now().strftime("%d-%m-%Y")
+
+            absent_block = is_absent_today(today, staff_id)
+
+            approved = is_request_approved(today, staff_id)
+
+            if absent_block and not approved:
+
+                st.error("You are marked absent today")
+
+                pending = is_request_pending(today, staff_id)
+
+                if pending:
+                    st.info("Request already sent to admin")
+                else:
+                    if st.button("Send Attendance Request"):
+
+                        request_sheet.append_row([
+                            today,
+                            staff_id,
+                            staff_name,
+                            role,
+                            "Pending"
+                        ])
+
+                        st.success("Request sent to admin")
+
+            else:
+
+                status = st.selectbox(
+                    "Attendance Status",
+                    ["Present", "Half Day Leave"]
+                )
 
             if st.button("Mark Attendance"):
 
@@ -334,39 +363,88 @@ if menu == "Admin Login":
 
         today = datetime.now().strftime("%d-%m-%Y")
 
-        if st.button("Add Today Absent Staff"):
+        st.header("Mark Particular Staff Absent")
+
+        selected_absent_staff = st.selectbox(
+            "Select Staff",
+            [
+                "Mohan",
+                "Ajay",
+                "Prathisha",
+                "Vegadesh"
+            ]
+        )
+
+        staff_map = {
+            "Mohan": "Staff1",
+            "Ajay": "Staff2",
+            "Prathisha": "Staff3",
+            "Vegadesh": "Staff4"
+        }
+
+        if st.button("Mark Selected Staff Absent"):
+
+            sid = staff_map[selected_absent_staff]
+
+            info = staff_users[sid]
 
             attendance_data = attendance_sheet.get_all_records()
             attendance_df = pd.DataFrame(attendance_data)
 
-            today_present_ids = []
+            already_exists = False
 
             if not attendance_df.empty:
-                today_present_ids = []
 
                 if "Date" in attendance_df.columns and "Staff ID" in attendance_df.columns:
 
-                    today_present_ids = []
+                    already_exists = (
+                        (attendance_df["Date"].astype(str) == today) &
+                        (attendance_df["Staff ID"].astype(str) == sid)
+                    ).any()
 
-                    if "Date" in attendance_df.columns and "Staff ID" in attendance_df.columns:
-                        today_df = attendance_df[
-                            attendance_df["Date"] == today
-                        ]
+            if already_exists:
 
-                        today_present_ids = today_df["Staff ID"].tolist()
+                st.warning("Attendance already marked for today")
 
-            for sid, info in staff_users.items():
-                if sid not in today_present_ids:
-                    attendance_sheet.append_row([
-                        today,
-                        "-",
-                        sid,
-                        info["name"],
-                        info["role"],
-                        "Absent"
-                    ])
+            else:
 
-            st.success("Absent Staff Added Successfully")
+                attendance_sheet.append_row([
+                    today,
+                    "-",
+                    sid,
+                    info["name"],
+                    info["role"],
+                    "Absent"
+                ])
+  
+                st.success(f"{selected_absent_staff} marked absent")
+
+        st.header("Attendance Requests")
+
+        request_data = request_sheet.get_all_records()
+        request_df = pd.DataFrame(request_data)
+
+        if not request_df.empty:
+
+            for i, row in request_df.iterrows():
+
+                if row.get("Date") == today and row.get("Request Status") == "Pending":
+
+                    st.write(
+                        f"{row.get('Staff Name')} attendance request"
+                    )
+
+                    if st.button(
+                        f"Approve {row.get('Staff Name')}",
+                        key=f"approve_{i}"
+                    ):
+
+                        request_sheet.update_cell(i + 2, 5, "Approved")
+
+                        st.success("Attendance Approved")
+
+                        st.rerun()
+
 
         st.header("Overall Attendance Report")
 
