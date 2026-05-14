@@ -61,14 +61,24 @@ def get_sheet(sheet_name):
     st.stop()
 
 def safe_df(ws, columns):
-    data = ws.get_all_records()
-    df = pd.DataFrame(data)
 
-    for col in columns:
-        if col not in df.columns:
-            df[col] = ""
+    for i in range(3):
 
-    return df
+        try:
+            data = ws.get_all_records()
+            df = pd.DataFrame(data)
+
+            for col in columns:
+                if col not in df.columns:
+                    df[col] = ""
+
+            return df
+
+        except Exception:
+            time.sleep(2)
+
+    st.warning("Google Sheet slow. Please try again.")
+    return pd.DataFrame(columns=columns)
 
 attendance_sheet = get_sheet("Attendance")
 
