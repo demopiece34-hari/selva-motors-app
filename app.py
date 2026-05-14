@@ -28,12 +28,9 @@ def get_or_create_sheet(sheet_name, headers):
         ws = sheet.worksheet(sheet_name)
     except:
         ws = sheet.add_worksheet(title=sheet_name, rows="1000", cols="20")
-
-    if ws.row_values(1) == []:
         ws.append_row(headers)
 
     return ws
-
 
 attendance_sheet = get_or_create_sheet(
     "Attendance",
