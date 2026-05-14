@@ -230,6 +230,26 @@ if menu == "Staff Login":
 
         st.header("Daily Service Entry")
 
+        service_df = safe_df(
+            service_sheet,
+            ["Date", "Staff Name"]
+        )
+
+        today_service_count = 0
+
+        if not service_df.empty:
+
+            today_service_count = len(
+                service_df[
+                    (service_df["Date"].astype(str) == today) &
+                    (service_df["Staff Name"].astype(str) == staff_name)
+                ]
+            )
+
+        st.info(
+            f"Today Service Bikes: {today_service_count}"
+        )
+
         if role == "Technician":
 
             bike = st.selectbox(
@@ -399,8 +419,49 @@ if menu == "Admin Login":
 
                         st.rerun()
 
-        st.header("Overall Service Report")
+        st.header("Today Technician Service Count")
 
+        service_df = safe_df(
+            service_sheet,
+            ["Date", "Staff Name"]
+        )
+
+        today_service_df = service_df[
+            service_df["Date"].astype(str) == today
+        ]
+
+        mohan_count = len(
+            today_service_df[
+                today_service_df["Staff Name"] == "Mohan"
+            ]
+        )
+
+        ajay_count = len(
+            today_service_df[
+                today_service_df["Staff Name"] == "Ajay"
+            ]
+        )
+
+        vegadesh_count = len(
+            today_service_df[
+                today_service_df["Staff Name"] == "Vegadesh"
+            ]
+        )
+
+        total_bikes = (
+            mohan_count +
+            ajay_count +
+            vegadesh_count
+        )
+
+        st.success(f"Mohan : {mohan_count} Bikes")
+        st.success(f"Ajay : {ajay_count} Bikes")
+        st.success(f"Vegadesh : {vegadesh_count} Bikes")
+
+        st.warning(f"Total Today Service Bikes : {total_bikes}")
+
+        st.header("Overall Service Report")
+        
         service_data = service_sheet.get_all_records()
         service_df = pd.DataFrame(service_data)
 
