@@ -86,6 +86,35 @@ def is_absent_today(today, staff_id):
         (df["Staff ID"].astype(str) == staff_id) &
         (df["Status"].astype(str) == "Absent")
     ).any()
+
+def is_absent_today(today, staff_id):
+    df = safe_df(attendance_sheet, ["Date", "Staff ID", "Status"])
+
+    return (
+        (df["Date"].astype(str) == today) &
+        (df["Staff ID"].astype(str) == staff_id) &
+        (df["Status"].astype(str) == "Absent")
+    ).any()
+
+
+def is_request_pending(today, staff_id):
+    df = safe_df(request_sheet, ["Date", "Staff ID", "Request Status"])
+
+    return (
+        (df["Date"].astype(str) == today) &
+        (df["Staff ID"].astype(str) == staff_id) &
+        (df["Request Status"].astype(str) == "Pending")
+    ).any()
+
+
+def is_request_approved(today, staff_id):
+    df = safe_df(request_sheet, ["Date", "Staff ID", "Request Status"])
+
+    return (
+        (df["Date"].astype(str) == today) &
+        (df["Staff ID"].astype(str) == staff_id) &
+        (df["Request Status"].astype(str) == "Approved")
+    ).any()
     
 st.title("SELVA MOTORS STAFF MANAGEMENT")
 
