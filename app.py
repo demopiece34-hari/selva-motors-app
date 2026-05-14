@@ -42,14 +42,8 @@ def connect_sheet():
 
 sheet = connect_sheet()
 
-def get_or_create_sheet(sheet_name, headers):
-    try:
-        ws = sheet.worksheet(sheet_name)
-    except:
-        ws = sheet.add_worksheet(title=sheet_name, rows="1000", cols="20")
-        ws.append_row(headers)
-    return ws
-
+def get_sheet(sheet_name):
+    return sheet.worksheet(sheet_name)
 
 def safe_df(ws, columns):
     data = ws.get_all_records()
@@ -61,35 +55,17 @@ def safe_df(ws, columns):
 
     return df
 
-attendance_sheet = get_or_create_sheet(
-    "Attendance",
-    ["Date", "Time", "Staff ID", "Staff Name", "Role", "Status"]
-)
+attendance_sheet = get_sheet("Attendance")
 
-service_sheet = get_or_create_sheet(
-    "ServiceReport",
-    ["Date", "Staff ID", "Staff Name", "Bike Name", "Service Type", "Labour Amount"]
-)
+service_sheet = get_sheet("ServiceReport")
 
-request_sheet = get_or_create_sheet(
-    "AttendanceRequests",
-    ["Date", "Staff ID", "Staff Name", "Role", "Request Status"]
-)
+request_sheet = get_sheet("AttendanceRequests")
 
-mohan_service_sheet = get_or_create_sheet(
-    "Mohan_Service",
-    ["Date", "Staff ID", "Staff Name", "Bike Name", "Service Type", "Labour Amount"]
-)
+mohan_service_sheet = get_sheet("Mohan_Service")
 
-ajay_service_sheet = get_or_create_sheet(
-    "Ajay_Service",
-    ["Date", "Staff ID", "Staff Name", "Bike Name", "Service Type", "Labour Amount"]
-)
+ajay_service_sheet = get_sheet("Ajay_Service")
 
-vegadesh_service_sheet = get_or_create_sheet(
-    "Vegadesh_Service",
-    ["Date", "Staff ID", "Staff Name", "Bike Name", "Service Type", "Labour Amount"]
-)
+vegadesh_service_sheet = get_sheet("Vegadesh_Service")
 
 staff_users = {
     "Staff1": {"password": "1234", "name": "Mohan", "role": "Technician"},
