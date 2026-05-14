@@ -267,7 +267,14 @@ if menu == "Admin Login":
             today_present_ids = []
 
             if not attendance_df.empty:
-                today_df = attendance_df[attendance_df["Date"] == today]
+                today_present_ids = []
+
+                if "Date" in attendance_df.columns and "Staff ID" in attendance_df.columns:
+
+                    today_df = attendance_df[
+                        attendance_df["Date"] == today
+                ]
+
                 today_present_ids = today_df["Staff ID"].tolist()
 
             for sid, info in staff_users.items():
