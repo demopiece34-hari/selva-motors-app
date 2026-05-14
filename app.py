@@ -428,25 +428,3 @@ if menu == "Admin Login":
 
             tech_total = tech_df["Labour Amount"].sum()
             st.success(f"{selected_technician} Total Labour Amount: ₹{tech_total}")
-
-        st.header("Staff Wise Total Labour Amount")
-
-        if not service_df.empty and "Labour Amount" in service_df.columns:
-
-            service_df["Labour Amount"] = pd.to_numeric(
-                service_df["Labour Amount"],
-                errors="coerce"
-            ).fillna(0)
-
-            total_df = service_df.groupby(
-                ["Staff ID", "Staff Name"],
-                as_index=False
-            )["Labour Amount"].sum()
-
-            st.dataframe(total_df, use_container_width=True)
-
-            grand_total = service_df["Labour Amount"].sum()
-            st.subheader(f"Overall Total Labour Amount: ₹{grand_total}")
-
-        else:
-            st.info("No service data available")
