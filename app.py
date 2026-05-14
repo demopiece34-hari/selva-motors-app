@@ -40,10 +40,25 @@ def connect_sheet():
     st.error("Google Sheet connection failed")
     st.stop()
 
-sheet = connect_sheet()
+@st.cache_resource
+def load_main_sheet():
+    return connect_sheet()
+
+sheet = load_main_sheet()
 
 def get_sheet(sheet_name):
-    return sheet.worksheet(sheet_name)
+
+    for i in range(3):
+
+        try:
+            return sheet.worksheet(sheet_name)
+
+        except Exception:
+
+            time.sleep(2)
+
+    st.error(f"{sheet_name} sheet connection failed")
+    st.stop()
 
 def safe_df(ws, columns):
     data = ws.get_all_records()
