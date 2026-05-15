@@ -266,7 +266,9 @@ if menu == "Staff Login":
 
             if st.button("📋 Show Today History"):
 
-                history_df = service_df[
+                history_data = service_df()
+
+                history_df = history_data[
                     (service_df["Date"].astype(str) == today) &
                     (service_df["Staff Name"].astype(str) == staff_name)
                 ]
