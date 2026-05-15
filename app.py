@@ -72,14 +72,17 @@ service_sheet = get_sheet("ServiceReport")
 request_sheet = get_sheet("AttendanceRequests")
 
 # ---------------- USERS ----------------
+
 staff_users = {
-    "Staff1": {"password": "1234", "name": "Mohan", "role": "Technician"},
-    "Staff2": {"password": "1234", "name": "Ajay", "role": "Technician"},
-    "Staff3": {"password": "1234", "name": "Prathisha", "role": "System Staff"},
-    "Staff4": {"password": "1234", "name": "Vegadesh", "role": "Technician"}
+    "mohan": {"password": "mohan", "name": "Mohan", "role": "Technician"},
+    "ajay": {"password": "ajay", "name": "Ajay", "role": "Technician"},
+    "prathisha": {"password": "prathisha", "name": "Prathisha", "role": "System Staff"},
+    "vengadesh": {"password": "vengadesh", "name": "Vegadesh", "role": "Technician"}
 }
 
-admin_user = {"admin": "admin123"}
+admin_user = {
+    "manoselva": "manobakiya"
+}
 
 # ---------------- FUNCTIONS ----------------
 def today_date():
