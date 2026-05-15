@@ -3,6 +3,7 @@ import pandas as pd
 import gspread
 import time
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from google.oauth2.service_account import Credentials
 
 st.set_page_config(page_title="Selva Motors Attendance", layout="wide")
@@ -85,11 +86,12 @@ admin_user = {
 }
 
 # ---------------- FUNCTIONS ----------------
-def today_date():
-    return datetime.now().strftime("%d-%m-%Y")
 
 def now_time():
-    return datetime.now().strftime("%I:%M:%S %p")
+    return datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%I:%M:%S %p")
+
+def today_date():
+    return datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%d-%m-%Y")
 
 def is_late():
     now = datetime.now()
