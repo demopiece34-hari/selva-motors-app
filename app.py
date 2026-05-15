@@ -2,6 +2,17 @@ import streamlit as st
 import pandas as pd
 import gspread
 import time
+from reportlab.platypus import (
+    SimpleDocTemplate,
+    Table,
+    TableStyle,
+    Paragraph,
+    Spacer
+)
+
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.pagesizes import A4
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from google.oauth2.service_account import Credentials
@@ -222,6 +233,126 @@ if menu == "Staff Login":
         # Service Entry
         st.header("🛠️ Daily Service Entry")
 
+        st.subheader("📄 Daily Technician Report PDF")
+
+        if role == "Technician":
+
+            if st.button("📥 Generate Today PDF Report"):
+
+                history_data = service_df()
+
+                today_history = history_data[
+                    (history_data["Date"].astype(str) == today) &
+                    (history_data["Staff Name"].astype(str) == staff_name)
+                ]
+
+                if today_history.empty:
+
+                    st.warning("No today service entries")
+
+                else:
+
+                    pdf_file = f"{staff_name}_daily_service_report.pdf"
+
+                    doc = SimpleDocTemplate(
+                        pdf_file,
+                        pagesize=A4,
+                        rightMargin=30,
+                        leftMargin=30,
+                        topMargin=30,
+                        bottomMargin=30
+                    )
+
+                    styles = getSampleStyleSheet()
+                    elements = []
+
+                    title = Paragraph(
+                        "<b>SELVA MOTORS - DAILY SERVICE REPORT</b>",
+                        styles["Title"]
+                    )
+
+                    elements.append(title)
+                    elements.append(Spacer(1, 20))
+
+                    info = Paragraph(
+                        f"<b>Date:</b> {today}<br/>"
+                        f"<b>Technician:</b> {staff_name}",
+                        styles["BodyText"]
+                    )
+
+                    elements.append(info)
+                    elements.append(Spacer(1, 15))
+
+                    table_data = [
+                        ["S.No", "Reg No", "Bike Name", "Service Type", "Labour"]
+                    ]
+
+                    total_labour = 0
+
+                    for index, row in today_history.iterrows():
+
+                        labour = float(row["Labour Amount"])
+                        total_labour += labour
+
+                        table_data.append([
+                            len(table_data),
+                            str(row.get("Reg No", "")),
+                            str(row["Bike Name"]),
+                            str(row["Service Type"]),
+                            f"Rs.{labour}"
+                        ])
+
+                    table_data.append([
+                        "",
+                        "",
+                        "",
+                        "Total",
+                        f"Rs.{total_labour}"
+                    ])
+
+                    table = Table(
+                        table_data,
+                        colWidths=[45, 110, 150, 110, 80]
+                    )
+
+                    table.setStyle(TableStyle([
+                        ("BACKGROUND", (0, 0), (-1, 0), colors.black),
+                        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                        ("GRID", (0, 0), (-1, -1), 1, colors.black),
+                        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                        ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
+                        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                        ("BOTTOMPADDING", (0, 0), (-1, 0), 10),
+                    ]))
+
+                    elements.append(table)
+                    elements.append(Spacer(1, 60))
+
+                    sign_table = Table([
+                        [
+                            "☑ Technician Signature\n\n\n___________________",
+                            "☑ Manager Visit / Signature\n\n\n___________________"
+                        ]
+                     ], colWidths=[250, 250])
+
+                    sign_table.setStyle(TableStyle([
+                        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ]))
+
+                    elements.append(sign_table)
+
+                    doc.build(elements)
+
+                    with open(pdf_file, "rb") as file:
+
+                        st.download_button(
+                            "📥 Download A4 PDF",
+                            file,
+                            file_name=pdf_file,
+                            mime="application/pdf"
+                        )
+
         sdf = service_df()
         today_staff_service = sdf[
             (sdf["Date"].astype(str) == today) &
@@ -413,34 +544,6 @@ if menu == "Admin Login":
         c1, c2 = st.columns(2)
         c1.metric("🏍️ Total Bikes Today", count_df["Today Bikes"].sum())
         c2.metric("💸 Total Labour Today", f"₹{count_df['Today Labour Amount'].sum()}")
-
-        # Monthly Salary
-        st.subheader("💵 Monthly Salary Report")
-
-        month_text = st.text_input("Enter Month MM-YYYY", datetime.now().strftime("%m-%Y"))
-
-        monthly_att = filter_by_month(adf, "Date", month_text)
-
-        salary_rows = []
-        per_day_salary = 500
-
-        for sid, info in staff_users.items():
-            temp = monthly_att[monthly_att["Staff ID"].astype(str) == sid]
-            present = len(temp[temp["Status"].astype(str).str.upper().isin(["PRESENT", "LATE PRESENT"])])
-            halfday = len(temp[temp["Status"].astype(str).str.upper() == "HALF DAY LEAVE"])
-            absent_count = len(temp[temp["Status"].astype(str).str.upper() == "ABSENT"])
-
-            salary = (present * per_day_salary) + (halfday * per_day_salary * 0.5)
-
-            salary_rows.append({
-                "Staff Name": info["name"],
-                "Present": present,
-                "Half Day": halfday,
-                "Absent": absent_count,
-                "Salary": salary
-            })
-
-        st.dataframe(pd.DataFrame(salary_rows), use_container_width=True)
 
         # Filters
         st.subheader("🔍 Filter Reports")
