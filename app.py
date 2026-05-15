@@ -2,11 +2,30 @@ import streamlit as st
 import pandas as pd
 import gspread
 import time
-from google.oauth2.service_account import Credentials
 from datetime import datetime
+from google.oauth2.service_account import Credentials
 
 st.set_page_config(page_title="Selva Motors Attendance", layout="wide")
 
+# ---------------- STYLE ----------------
+st.markdown("""
+<style>
+.main {background-color:#f7f9fc;}
+.stButton>button {
+    border-radius:10px;
+    font-weight:600;
+}
+.card {
+    padding:18px;
+    border-radius:15px;
+    background:white;
+    box-shadow:0 2px 10px rgba(0,0,0,0.08);
+    margin-bottom:15px;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# ---------------- GOOGLE SHEET CONNECTION ----------------
 scope = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
@@ -17,53 +36,30 @@ creds = Credentials.from_service_account_info(
     scopes=scope
 )
 
-client = gspread.authorize(creds)
-
 @st.cache_resource
 def connect_sheet():
-
-    for i in range(3):
-
+    for _ in range(5):
         try:
             client = gspread.authorize(creds)
-
-            sheet = client.open_by_key(
-                st.secrets["SHEET_ID"]
-            )
-
-            return sheet
-
-        except Exception as e:
-
+            return client.open_by_key(st.secrets["SHEET_ID"])
+        except Exception:
             time.sleep(2)
-
-    st.error("Google Sheet connection failed")
+    st.error("⚠️ Google Sheet connection failed. Refresh pannunga.")
     st.stop()
 
-@st.cache_resource
-def load_main_sheet():
-    return connect_sheet()
-
-sheet = load_main_sheet()
+sheet = connect_sheet()
 
 def get_sheet(sheet_name):
-
-    for i in range(3):
-
+    for _ in range(5):
         try:
             return sheet.worksheet(sheet_name)
-
         except Exception:
-
             time.sleep(2)
-
-    st.error(f"{sheet_name} sheet connection failed")
+    st.error(f"⚠️ {sheet_name} sheet connection failed")
     st.stop()
 
 def safe_df(ws, columns):
-
-    for i in range(3):
-
+    for _ in range(5):
         try:
             data = ws.get_all_records()
             df = pd.DataFrame(data)
@@ -77,15 +73,13 @@ def safe_df(ws, columns):
         except Exception:
             time.sleep(2)
 
-    st.warning("Google Sheet slow. Please try again.")
     return pd.DataFrame(columns=columns)
 
 attendance_sheet = get_sheet("Attendance")
-
 service_sheet = get_sheet("ServiceReport")
-
 request_sheet = get_sheet("AttendanceRequests")
 
+# ---------------- USERS ----------------
 staff_users = {
     "Staff1": {"password": "1234", "name": "Mohan", "role": "Technician"},
     "Staff2": {"password": "1234", "name": "Ajay", "role": "Technician"},
@@ -93,60 +87,79 @@ staff_users = {
     "Staff4": {"password": "1234", "name": "Vegadesh", "role": "Technician"}
 }
 
-admin_user = {
-    "admin": "admin123"
-}
+admin_user = {"admin": "admin123"}
+
+# ---------------- FUNCTIONS ----------------
+def today_date():
+    return datetime.now().strftime("%d-%m-%Y")
+
+def now_time():
+    return datetime.now().strftime("%H:%M:%S")
 
 def is_absent_today(today, staff_id):
     df = safe_df(attendance_sheet, ["Date", "Staff ID", "Status"])
-
     return (
         (df["Date"].astype(str) == today) &
         (df["Staff ID"].astype(str) == staff_id) &
         (df["Status"].astype(str).str.upper() == "ABSENT")
     ).any()
 
-
 def is_request_pending(today, staff_id):
     df = safe_df(request_sheet, ["Date", "Staff ID", "Request Status"])
-
     return (
         (df["Date"].astype(str) == today) &
         (df["Staff ID"].astype(str) == staff_id) &
-        (df["Request Status"].astype(str) == "Pending")
+        (df["Request Status"].astype(str).str.upper() == "PENDING")
     ).any()
-
 
 def is_request_approved(today, staff_id):
     df = safe_df(request_sheet, ["Date", "Staff ID", "Request Status"])
-
     return (
         (df["Date"].astype(str) == today) &
         (df["Staff ID"].astype(str) == staff_id) &
-        (df["Request Status"].astype(str) == "Approved")
+        (df["Request Status"].astype(str).str.upper() == "APPROVED")
     ).any()
-    
-st.title("SELVA MOTORS STAFF MANAGEMENT")
+
+def already_present_or_halfday(today, staff_id):
+    df = safe_df(attendance_sheet, ["Date", "Staff ID", "Status"])
+    return (
+        (df["Date"].astype(str) == today) &
+        (df["Staff ID"].astype(str) == staff_id) &
+        (df["Status"].astype(str).str.upper() != "ABSENT")
+    ).any()
+
+def service_dataframe():
+    df = safe_df(
+        service_sheet,
+        ["Date", "Staff ID", "Staff Name", "Bike Name", "Service Type", "Labour Amount"]
+    )
+    df["Labour Amount"] = pd.to_numeric(
+        df["Labour Amount"],
+        errors="coerce"
+    ).fillna(0)
+    return df
+
+# ---------------- APP ----------------
+st.title("🏍️ SELVA MOTORS STAFF MANAGEMENT ⚙️")
 
 menu = st.sidebar.selectbox(
-    "Select Login",
+    "🔐 Select Login",
     ["Staff Login", "Admin Login"]
 )
 
 # ======================================================
 # STAFF LOGIN
 # ======================================================
-
 if menu == "Staff Login":
 
-    st.subheader("Staff Login")
+    st.subheader("🔑 Staff Login")
 
     if not st.session_state.get("staff_login"):
 
         user_id = st.text_input("User ID")
         password = st.text_input("Password", type="password")
 
-        if st.button("Login"):
+        if st.button("🔓 Login"):
 
             if user_id in staff_users and staff_users[user_id]["password"] == password:
                 st.session_state["staff_login"] = True
@@ -155,46 +168,38 @@ if menu == "Staff Login":
                 st.session_state["staff_role"] = staff_users[user_id]["role"]
                 st.rerun()
             else:
-                st.error("Invalid Login")
+                st.error("🚫 Invalid Staff Login")
 
     else:
         staff_id = st.session_state["staff_id"]
+        staff_name = st.session_state["staff_name"]
+        role = st.session_state["staff_role"]
+        today = today_date()
 
-        staff_name = st.session_state.get(
-            "staff_name",
-            staff_users.get(staff_id, {}).get("name", "")
-        )
+        st.success(f"👋 Hii {staff_name}")
+        st.info(f"⚙️ Role: {role}")
 
-        role = st.session_state.get(
-            "staff_role",
-            staff_users.get(staff_id, {}).get("role", "")
-        )
-
-        st.success(f"Hii {staff_name}")
-        st.info(f"Role: {role}")
-
-        if st.button("Logout"):
+        if st.button("🔒 Logout"):
             st.session_state["staff_login"] = False
             st.session_state["staff_id"] = ""
             st.session_state["staff_name"] = ""
             st.session_state["staff_role"] = ""
             st.rerun()
 
-        st.header("Staff Attendance")
-
-        today = datetime.now().strftime("%d-%m-%Y")
+        # ---------------- ATTENDANCE ----------------
+        st.header("📥 Staff Attendance")
 
         absent_block = is_absent_today(today, staff_id)
         approved = is_request_approved(today, staff_id)
 
         if absent_block and not approved:
 
-            st.error("You are marked absent today. Send request to admin.")
+            st.error("🚫 Admin absent mark pannirukanga. Attendance block pannirukku.")
 
             if is_request_pending(today, staff_id):
-                st.info("Request already sent. Waiting for admin approval.")
+                st.info("📤 Request already sent. Admin approval pending.")
             else:
-                if st.button("Send Attendance Request"):
+                if st.button("📤 Send Attendance Request"):
                     request_sheet.append_row([
                         today,
                         staff_id,
@@ -202,7 +207,7 @@ if menu == "Staff Login":
                         role,
                         "Pending"
                     ])
-                    st.success("Request sent to admin")
+                    st.success("✅ Request sent to admin")
                     st.rerun()
 
         else:
@@ -212,61 +217,42 @@ if menu == "Staff Login":
                 ["Present", "Half Day Leave"]
             )
 
-            if st.button("Mark Attendance"):
+            if st.button("📥 Mark Attendance"):
 
-                now = datetime.now()
-
-                attendance_df = safe_df(
-                    attendance_sheet,
-                    ["Date", "Staff ID", "Status"]
-                )
-
-                already_marked = (
-                    (attendance_df["Date"].astype(str) == today) &
-                    (attendance_df["Staff ID"].astype(str) == staff_id) &
-                    (attendance_df["Status"].astype(str) != "Absent")
-                ).any()
-
-                if already_marked:
-                    st.warning("Today attendance already marked")
+                if already_present_or_halfday(today, staff_id):
+                    st.warning("⚠️ Today attendance already marked")
                 else:
                     attendance_sheet.append_row([
                         today,
-                        now.strftime("%H:%M:%S"),
+                        now_time(),
                         staff_id,
                         staff_name,
                         role,
                         status
                     ])
+                    st.success("✅ Attendance Saved")
 
-                    st.success("Attendance Saved")
+        # ---------------- SERVICE ENTRY ----------------
+        st.header("🛠️ Daily Service Entry")
 
-        st.header("Daily Service Entry")
+        service_df = service_dataframe()
 
-        service_df = safe_df(
-            service_sheet,
-            ["Date", "Staff Name"]
-        )
+        today_staff_service = service_df[
+            (service_df["Date"].astype(str) == today) &
+            (service_df["Staff Name"].astype(str) == staff_name)
+        ]
 
-        today_service_count = 0
+        today_bike_count = len(today_staff_service)
+        today_labour_total = today_staff_service["Labour Amount"].sum()
 
-        if not service_df.empty:
-
-            today_service_count = len(
-                service_df[
-                    (service_df["Date"].astype(str) == today) &
-                    (service_df["Staff Name"].astype(str) == staff_name)
-                ]
-            )
-
-        st.info(
-            f"Today Service Bikes: {today_service_count}"
-        )
+        col1, col2 = st.columns(2)
+        col1.metric("🏍️ Today Service Bikes", today_bike_count)
+        col2.metric("💵 Today Labour Total", f"₹{today_labour_total}")
 
         if role == "Technician":
 
             bike = st.selectbox(
-                "Bike Name",
+                "🏍️ Bike Name",
                 [
                     "Passion Plus",
                     "Splendor Plus",
@@ -280,12 +266,12 @@ if menu == "Staff Login":
             )
 
             service_type = st.selectbox(
-                "Service Type",
+                "🛢️ Service Type",
                 ["Paid", "FSC", "General"]
             )
 
             labour = st.number_input(
-                "Labour Amount",
+                "💵 Labour Amount",
                 min_value=0
             )
 
@@ -293,71 +279,64 @@ if menu == "Staff Login":
                 st.session_state["service_lock"] = False
 
             if st.session_state["service_lock"]:
-                st.warning("Please wait 3 seconds...")
+                st.warning("⏳ Please wait 3 seconds...")
                 time.sleep(3)
                 st.session_state["service_lock"] = False
                 st.rerun()
 
-            if st.button("Save Service Report", disabled=st.session_state["service_lock"]):
+            if st.button("📤 Save Service Report", disabled=st.session_state["service_lock"]):
 
                 st.session_state["service_lock"] = True
 
-                now = datetime.now()
-                today = now.strftime("%d-%m-%Y")
-
-                row_data = [
+                service_sheet.append_row([
                     today,
                     staff_id,
                     staff_name,
                     bike,
                     service_type,
                     labour
-                ]
+                ])
 
-                service_sheet.append_row(row_data)
-
-                st.success("Service Report Saved")
+                st.success("✅ Service Report Saved")
                 st.rerun()
 
         else:
-            st.info("System Staff ku service entry illa")
+            st.info("💻 System Staff ku service entry illa")
 
 # ======================================================
 # ADMIN LOGIN
 # ======================================================
-
 if menu == "Admin Login":
 
-    st.subheader("Admin Login")
+    st.subheader("🔐 Admin Login")
 
-    admin_id = st.text_input("Admin User ID")
-    admin_pass = st.text_input("Admin Password", type="password")
+    if not st.session_state.get("admin_login"):
 
-    if st.button("Admin Login"):
+        admin_id = st.text_input("Admin User ID")
+        admin_pass = st.text_input("Admin Password", type="password")
 
-        if admin_id in admin_user and admin_user[admin_id] == admin_pass:
-            st.session_state["admin_login"] = True
-            st.success("Admin Login Successful")
-        else:
-            st.error("Invalid Admin Login")
+        if st.button("🔓 Admin Login"):
 
-    if st.session_state.get("admin_login"):
+            if admin_id in admin_user and admin_user[admin_id] == admin_pass:
+                st.session_state["admin_login"] = True
+                st.rerun()
+            else:
+                st.error("🚫 Invalid Admin Login")
 
-        st.header("Admin Dashboard")
+    else:
 
-        today = datetime.now().strftime("%d-%m-%Y")
+        st.success("🔓 Admin Logged In")
 
-        st.header("Mark Particular Staff Absent")
+        if st.button("🔒 Admin Logout"):
+            st.session_state["admin_login"] = False
+            st.rerun()
 
-        selected_absent_staff = st.selectbox(
-            "Select Staff",
-            [
-                "Mohan",
-                "Ajay",
-                "Prathisha",
-                "Vegadesh"
-            ]
-        )
+        today = today_date()
+
+        st.header("📊 Admin Dashboard")
+
+        # ---------------- MARK ABSENT ----------------
+        st.subheader("🚫 Mark Particular Staff Absent")
 
         staff_map = {
             "Mohan": "Staff1",
@@ -366,145 +345,110 @@ if menu == "Admin Login":
             "Vegadesh": "Staff4"
         }
 
-        if st.button("Mark Selected Staff Absent"):
+        selected_absent_staff = st.selectbox(
+            "Select Staff",
+            ["Mohan", "Ajay", "Prathisha", "Vegadesh"]
+        )
+
+        if st.button("🚫 Mark Selected Staff Absent"):
 
             sid = staff_map[selected_absent_staff]
-
             info = staff_users[sid]
 
-            attendance_data = attendance_sheet.get_all_records()
-            attendance_df = pd.DataFrame(attendance_data)
-
-            already_exists = False
-
-            if not attendance_df.empty:
-
-                if "Date" in attendance_df.columns and "Staff ID" in attendance_df.columns:
-
-                    already_exists = (
-                        (attendance_df["Date"].astype(str) == today) &
-                        (attendance_df["Staff ID"].astype(str) == sid)
-                    ).any()
-
-            if already_exists:
-
-                st.warning("Attendance already marked for today")
-
+            if already_present_or_halfday(today, sid) or is_absent_today(today, sid):
+                st.warning("⚠️ Today attendance already exists")
             else:
-
                 attendance_sheet.append_row([
                     today,
                     "-",
                     sid,
                     info["name"],
                     info["role"],
-                    "Absent"
+                    "ABSENT"
                 ])
-  
-                st.success(f"{selected_absent_staff} marked absent")
+                st.success(f"✅ {selected_absent_staff} marked ABSENT")
+                st.rerun()
 
-        st.header("Attendance Requests")
+        # ---------------- REQUEST APPROVAL ----------------
+        st.subheader("📤 Attendance Requests")
 
-        request_data = request_sheet.get_all_records()
-        request_df = pd.DataFrame(request_data)
-
-        if not request_df.empty:
-
-            for i, row in request_df.iterrows():
-
-                if row.get("Date") == today and row.get("Request Status") == "Pending":
-
-                    st.write(
-                        f"{row.get('Staff Name')} attendance request"
-                    )
-
-                    if st.button(
-                        f"Approve {row.get('Staff Name')}",
-                        key=f"approve_{i}"
-                    ):
-
-                        request_sheet.update_cell(i + 2, 5, "Approved")
-
-                        st.success("Attendance Approved")
-
-                        st.rerun()
-
-        st.header("Today Technician Service Count")
-
-        service_df = safe_df(
-            service_sheet,
-            ["Date", "Staff Name"]
+        request_df = safe_df(
+            request_sheet,
+            ["Date", "Staff ID", "Staff Name", "Role", "Request Status"]
         )
+
+        pending_df = request_df[
+            (request_df["Date"].astype(str) == today) &
+            (request_df["Request Status"].astype(str).str.upper() == "PENDING")
+        ]
+
+        if pending_df.empty:
+            st.info("No pending requests")
+        else:
+            for i, row in pending_df.iterrows():
+
+                st.write(
+                    f"🔗 {row['Staff Name']} ({row['Staff ID']}) attendance open request"
+                )
+
+                if st.button(f"✅ Approve {row['Staff Name']}", key=f"approve_{i}"):
+                    request_sheet.update_cell(i + 2, 5, "Approved")
+                    st.success("✅ Request Approved")
+                    st.rerun()
+
+        # ---------------- SERVICE COUNT ----------------
+        st.subheader("📈 Today Technician Service Count")
+
+        service_df = service_dataframe()
 
         today_service_df = service_df[
             service_df["Date"].astype(str) == today
         ]
 
-        mohan_count = len(
-            today_service_df[
-                today_service_df["Staff Name"] == "Mohan"
+        tech_names = ["Mohan", "Ajay", "Vegadesh"]
+
+        count_rows = []
+        for name in tech_names:
+            staff_df = today_service_df[
+                today_service_df["Staff Name"].astype(str) == name
             ]
+
+            count_rows.append({
+                "Technician": name,
+                "Today Bikes": len(staff_df),
+                "Today Labour Amount": staff_df["Labour Amount"].sum()
+            })
+
+        count_df = pd.DataFrame(count_rows)
+
+        st.dataframe(count_df, use_container_width=True)
+
+        total_bikes = count_df["Today Bikes"].sum()
+        total_labour = count_df["Today Labour Amount"].sum()
+
+        col1, col2 = st.columns(2)
+        col1.metric("🏍️ Total Bikes Today", total_bikes)
+        col2.metric("💸 Total Labour Today", f"₹{total_labour}")
+
+        # ---------------- REPORTS ----------------
+        st.subheader("📥 Overall Attendance Report")
+
+        attendance_df = safe_df(
+            attendance_sheet,
+            ["Date", "Time", "Staff ID", "Staff Name", "Role", "Status"]
         )
 
-        ajay_count = len(
-            today_service_df[
-                today_service_df["Staff Name"] == "Ajay"
-            ]
-        )
+        st.dataframe(attendance_df, use_container_width=True)
 
-        vegadesh_count = len(
-            today_service_df[
-                today_service_df["Staff Name"] == "Vegadesh"
-            ]
-        )
-
-        total_bikes = (
-            mohan_count +
-            ajay_count +
-            vegadesh_count
-        )
-
-        st.success(f"Mohan : {mohan_count} Bikes")
-        st.success(f"Ajay : {ajay_count} Bikes")
-        st.success(f"Vegadesh : {vegadesh_count} Bikes")
-
-        st.warning(f"Total Today Service Bikes : {total_bikes}")
-
-        st.header("Today Technician Labour Total")
-
-        service_df = safe_df(
-            service_sheet,
-            ["Date", "Staff Name", "Labour Amount"]
-        )
-
-        today_df = service_df[
-            service_df["Date"].astype(str) == today
-        ]
-
-        today_df["Labour Amount"] = pd.to_numeric(
-            today_df["Labour Amount"],
-            errors="coerce"
-        ).fillna(0)
-
-        total_df = today_df.groupby(
-            "Staff Name",
-            as_index=False
-        )["Labour Amount"].sum()
-
-        st.dataframe(total_df, use_container_width=True)
-
-        st.header("Overall Service Report")
-        
-        service_data = service_sheet.get_all_records()
-        service_df = pd.DataFrame(service_data)
+        st.subheader("🛠️ Overall Service Report")
 
         st.dataframe(service_df, use_container_width=True)
 
-        if not tech_df.empty and "Labour Amount" in tech_df.columns:
-            tech_df["Labour Amount"] = pd.to_numeric(
-                tech_df["Labour Amount"],
-                errors="coerce"
-            ).fillna(0)
+        csv_service = service_df.to_csv(index=False).encode("utf-8")
 
-            tech_total = tech_df["Labour Amount"].sum()
-            st.success(f"{selected_technician} Total Labour Amount: ₹{tech_total}")
+        st.download_button(
+            "📥 Download Service Report CSV",
+            data=csv_service,
+            file_name="service_report.csv",
+            mime="text/csv"
+            )
