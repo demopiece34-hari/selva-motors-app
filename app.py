@@ -237,10 +237,28 @@ if menu == "Staff Login":
                 "🔗 Vehicle Reg Number",
                 placeholder="TN 82 AB 1234"
             )
-            bike = st.selectbox("🏍️ Bike Name", [
-                "Passion Plus", "Splendor Plus", "Destiny", "Xoom",
-                "Glamour", "Xtreme", "Super Splendor", "HF Deluxe"
-            ])
+            bike = st.selectbox(
+                "🏍️ Select Hero Bike Model",
+                [
+                    "Splendor Plus",
+                    "Splendor Plus XTEC",
+                    "HF 100",
+                    "HF Deluxe",
+                    "Passion Plus",
+                    "Passion XTEC",
+                    "Glamour",
+                    "Super Splendor",
+                    "Super Splendor XTEC",
+                    "XPulse 210",
+                    "Destini Prime",
+                    "Destini 125",
+                    "Destini XTEC",
+                    "Pleasure Plus",
+                    "Pleasure Plus XTEC",
+                    "Xoom 110",
+                    "Xoom 125"
+                ]
+            )
 
             service_type = st.selectbox("🛢️ Service Type", ["Paid", "FSC", "General"])
             labour = st.number_input("💵 Labour Amount", min_value=0)
