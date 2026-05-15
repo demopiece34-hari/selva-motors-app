@@ -569,19 +569,97 @@ if menu == "Admin Login":
         st.dataframe(filtered_ser, use_container_width=True)
 
         # Download
-        st.download_button(
-            "📥 Download Attendance CSV",
-            data=filtered_att.to_csv(index=False).encode("utf-8"),
-            file_name="attendance_report.csv",
-            mime="text/csv"
-        )
+        if st.button("📄 Generate Attendance PDF"):
 
-        st.download_button(
-            "📥 Download Service CSV",
-            data=filtered_ser.to_csv(index=False).encode("utf-8"),
-            file_name="service_report.csv",
-            mime="text/csv"
-        )
+            attendance_pdf = "attendance_report.pdf"
+
+            doc = SimpleDocTemplate(
+                attendance_pdf,
+                pagesize=A4
+            )
+
+            elements = []
+
+            styles = getSampleStyleSheet()
+
+            title = Paragraph(
+                "<b>SELVA MOTORS - ATTENDANCE REPORT</b>",
+                styles["Title"]
+            )
+
+            elements.append(title)
+            elements.append(Spacer(1, 20))
+
+            att_table_data = [filtered_att.columns.tolist()] + filtered_att.values.tolist()
+
+            att_table = Table(att_table_data)
+
+            att_table.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.black),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("GRID", (0, 0), (-1, -1), 1, colors.black),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ]))
+
+            elements.append(att_table)
+
+            doc.build(elements)
+
+            with open(attendance_pdf, "rb") as file:
+
+                st.download_button(
+                    "📥 Download Attendance PDF",
+                    file,
+                    file_name=attendance_pdf,
+                    mime="application/pdf"
+                )
+
+        if st.button("📄 Generate Service PDF"):
+
+            service_pdf = "service_report.pdf"
+
+            doc = SimpleDocTemplate(
+                service_pdf,
+                pagesize=A4
+            )
+
+            elements = []
+
+            styles = getSampleStyleSheet()
+
+            title = Paragraph(
+                "<b>SELVA MOTORS - SERVICE REPORT</b>",
+                styles["Title"]
+            )
+
+            elements.append(title)
+            elements.append(Spacer(1, 20))
+
+            ser_table_data = [filtered_ser.columns.tolist()] + filtered_ser.values.tolist()
+
+            ser_table = Table(ser_table_data)
+
+            ser_table.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.black),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("GRID", (0, 0), (-1, -1), 1, colors.black),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ]))
+
+            elements.append(ser_table)
+
+            doc.build(elements)
+
+            with open(service_pdf, "rb") as file:
+
+                st.download_button(
+                    "📥 Download Service PDF",
+                    file,
+                    file_name=service_pdf,
+                    mime="application/pdf"
+                )
 
         # WhatsApp format
         st.subheader("📤 WhatsApp Daily Report Format")
