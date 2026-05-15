@@ -261,6 +261,35 @@ if menu == "Staff Login":
                 ])
                 st.success("✅ Service Report Saved")
                 st.rerun()
+
+            st.subheader("📜 Today Service History")
+
+            if st.button("📋 Show Today History"):
+
+                history_df = service_df[
+                    (service_df["Date"].astype(str) == today) &
+                    (service_df["Staff Name"].astype(str) == staff_name)
+                ]
+
+                if history_df.empty:
+
+                    st.warning("No today service entries")
+
+                else:
+
+                    show_df = history_df[
+                        [
+                            "Reg No",
+                            "Bike Name",
+                            "Service Type",
+                            "Labour Amount"
+                        ]
+                    ]
+
+                    st.dataframe(
+                        show_df,
+                        use_container_width=True
+                    )
         else:
             st.info("💻 System Staff ku service entry illa")
 
