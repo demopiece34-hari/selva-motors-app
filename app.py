@@ -11,10 +11,7 @@ st.set_page_config(page_title="Selva Motors Attendance", layout="wide")
 st.markdown("""
 <style>
 .main {background-color:#f7f9fc;}
-.stButton>button {
-    border-radius:10px;
-    font-weight:600;
-}
+.stButton>button {border-radius:10px;font-weight:600;}
 .card {
     padding:18px;
     border-radius:15px;
@@ -25,7 +22,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ---------------- GOOGLE SHEET CONNECTION ----------------
+# ---------------- GOOGLE SHEET ----------------
 scope = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
@@ -61,18 +58,13 @@ def get_sheet(sheet_name):
 def safe_df(ws, columns):
     for _ in range(5):
         try:
-            data = ws.get_all_records()
-            df = pd.DataFrame(data)
-
+            df = pd.DataFrame(ws.get_all_records())
             for col in columns:
                 if col not in df.columns:
                     df[col] = ""
-
             return df
-
         except Exception:
             time.sleep(2)
-
     return pd.DataFrame(columns=columns)
 
 attendance_sheet = get_sheet("Attendance")
@@ -96,56 +88,65 @@ def today_date():
 def now_time():
     return datetime.now().strftime("%H:%M:%S")
 
+def is_late():
+    now = datetime.now()
+    late_time = now.replace(hour=9, minute=30, second=0)
+    return now > late_time
+
+def attendance_df():
+    return safe_df(attendance_sheet, ["Date", "Time", "Staff ID", "Staff Name", "Role", "Status"])
+
+def service_df():
+    df = safe_df(service_sheet, ["Date", "Staff ID", "Staff Name", "Bike Name", "Service Type", "Labour Amount"])
+    df["Labour Amount"] = pd.to_numeric(df["Labour Amount"], errors="coerce").fillna(0)
+    return df
+
+def request_df():
+    return safe_df(request_sheet, ["Date", "Staff ID", "Staff Name", "Role", "Request Status"])
+
 def is_absent_today(today, staff_id):
-    df = safe_df(attendance_sheet, ["Date", "Staff ID", "Status"])
+    df = attendance_df()
     return (
         (df["Date"].astype(str) == today) &
         (df["Staff ID"].astype(str) == staff_id) &
         (df["Status"].astype(str).str.upper() == "ABSENT")
     ).any()
 
-def is_request_pending(today, staff_id):
-    df = safe_df(request_sheet, ["Date", "Staff ID", "Request Status"])
+def request_pending(today, staff_id):
+    df = request_df()
     return (
         (df["Date"].astype(str) == today) &
         (df["Staff ID"].astype(str) == staff_id) &
         (df["Request Status"].astype(str).str.upper() == "PENDING")
     ).any()
 
-def is_request_approved(today, staff_id):
-    df = safe_df(request_sheet, ["Date", "Staff ID", "Request Status"])
+def request_approved(today, staff_id):
+    df = request_df()
     return (
         (df["Date"].astype(str) == today) &
         (df["Staff ID"].astype(str) == staff_id) &
         (df["Request Status"].astype(str).str.upper() == "APPROVED")
     ).any()
 
-def already_present_or_halfday(today, staff_id):
-    df = safe_df(attendance_sheet, ["Date", "Staff ID", "Status"])
+def already_marked(today, staff_id):
+    df = attendance_df()
     return (
         (df["Date"].astype(str) == today) &
         (df["Staff ID"].astype(str) == staff_id) &
         (df["Status"].astype(str).str.upper() != "ABSENT")
     ).any()
 
-def service_dataframe():
-    df = safe_df(
-        service_sheet,
-        ["Date", "Staff ID", "Staff Name", "Bike Name", "Service Type", "Labour Amount"]
-    )
-    df["Labour Amount"] = pd.to_numeric(
-        df["Labour Amount"],
-        errors="coerce"
-    ).fillna(0)
-    return df
+def filter_by_month(df, date_col, month_text):
+    if df.empty:
+        return df
+    temp = df.copy()
+    temp["Month"] = pd.to_datetime(temp[date_col], format="%d-%m-%Y", errors="coerce").dt.strftime("%m-%Y")
+    return temp[temp["Month"] == month_text]
 
 # ---------------- APP ----------------
 st.title("🏍️ SELVA MOTORS STAFF MANAGEMENT ⚙️")
 
-menu = st.sidebar.selectbox(
-    "🔐 Select Login",
-    ["Staff Login", "Admin Login"]
-)
+menu = st.sidebar.selectbox("🔐 Select Login", ["Staff Login", "Admin Login"])
 
 # ======================================================
 # STAFF LOGIN
@@ -155,12 +156,10 @@ if menu == "Staff Login":
     st.subheader("🔑 Staff Login")
 
     if not st.session_state.get("staff_login"):
-
         user_id = st.text_input("User ID")
         password = st.text_input("Password", type="password")
 
         if st.button("🔓 Login"):
-
             if user_id in staff_users and staff_users[user_id]["password"] == password:
                 st.session_state["staff_login"] = True
                 st.session_state["staff_id"] = user_id
@@ -180,100 +179,62 @@ if menu == "Staff Login":
         st.info(f"⚙️ Role: {role}")
 
         if st.button("🔒 Logout"):
-            st.session_state["staff_login"] = False
-            st.session_state["staff_id"] = ""
-            st.session_state["staff_name"] = ""
-            st.session_state["staff_role"] = ""
+            st.session_state.clear()
             st.rerun()
 
-        # ---------------- ATTENDANCE ----------------
+        # Attendance
         st.header("📥 Staff Attendance")
 
-        absent_block = is_absent_today(today, staff_id)
-        approved = is_request_approved(today, staff_id)
+        absent = is_absent_today(today, staff_id)
+        approved = request_approved(today, staff_id)
 
-        if absent_block and not approved:
-
-            st.error("🚫 Admin absent mark pannirukanga. Attendance block pannirukku.")
-
-            if is_request_pending(today, staff_id):
+        if absent and not approved:
+            st.error("🚫 Admin absent mark pannirukanga. Attendance block.")
+            if request_pending(today, staff_id):
                 st.info("📤 Request already sent. Admin approval pending.")
             else:
                 if st.button("📤 Send Attendance Request"):
-                    request_sheet.append_row([
-                        today,
-                        staff_id,
-                        staff_name,
-                        role,
-                        "Pending"
-                    ])
+                    request_sheet.append_row([today, staff_id, staff_name, role, "Pending"])
                     st.success("✅ Request sent to admin")
                     st.rerun()
-
         else:
-
-            status = st.selectbox(
-                "Attendance Status",
-                ["Present", "Half Day Leave"]
-            )
+            status = st.selectbox("Attendance Status", ["Present", "Half Day Leave"])
+            selfie = st.camera_input("📸 Optional Selfie Attendance")
 
             if st.button("📥 Mark Attendance"):
-
-                if already_present_or_halfday(today, staff_id):
+                if already_marked(today, staff_id):
                     st.warning("⚠️ Today attendance already marked")
                 else:
+                    final_status = status
+                    if status == "Present" and is_late():
+                        final_status = "Late Present"
+
                     attendance_sheet.append_row([
-                        today,
-                        now_time(),
-                        staff_id,
-                        staff_name,
-                        role,
-                        status
+                        today, now_time(), staff_id, staff_name, role, final_status
                     ])
                     st.success("✅ Attendance Saved")
 
-        # ---------------- SERVICE ENTRY ----------------
+        # Service Entry
         st.header("🛠️ Daily Service Entry")
 
-        service_df = service_dataframe()
-
-        today_staff_service = service_df[
-            (service_df["Date"].astype(str) == today) &
-            (service_df["Staff Name"].astype(str) == staff_name)
+        sdf = service_df()
+        today_staff_service = sdf[
+            (sdf["Date"].astype(str) == today) &
+            (sdf["Staff Name"].astype(str) == staff_name)
         ]
 
-        today_bike_count = len(today_staff_service)
-        today_labour_total = today_staff_service["Labour Amount"].sum()
-
         col1, col2 = st.columns(2)
-        col1.metric("🏍️ Today Service Bikes", today_bike_count)
-        col2.metric("💵 Today Labour Total", f"₹{today_labour_total}")
+        col1.metric("🏍️ Today Service Bikes", len(today_staff_service))
+        col2.metric("💵 Today Labour Total", f"₹{today_staff_service['Labour Amount'].sum()}")
 
         if role == "Technician":
+            bike = st.selectbox("🏍️ Bike Name", [
+                "Passion Plus", "Splendor Plus", "Destiny", "Xoom",
+                "Glamour", "Xtreme", "Super Splendor", "HF Deluxe"
+            ])
 
-            bike = st.selectbox(
-                "🏍️ Bike Name",
-                [
-                    "Passion Plus",
-                    "Splendor Plus",
-                    "Destiny",
-                    "Xoom",
-                    "Glamour",
-                    "Xtreme",
-                    "Super Splendor",
-                    "HF Deluxe"
-                ]
-            )
-
-            service_type = st.selectbox(
-                "🛢️ Service Type",
-                ["Paid", "FSC", "General"]
-            )
-
-            labour = st.number_input(
-                "💵 Labour Amount",
-                min_value=0
-            )
+            service_type = st.selectbox("🛢️ Service Type", ["Paid", "FSC", "General"])
+            labour = st.number_input("💵 Labour Amount", min_value=0)
 
             if "service_lock" not in st.session_state:
                 st.session_state["service_lock"] = False
@@ -285,21 +246,12 @@ if menu == "Staff Login":
                 st.rerun()
 
             if st.button("📤 Save Service Report", disabled=st.session_state["service_lock"]):
-
                 st.session_state["service_lock"] = True
-
                 service_sheet.append_row([
-                    today,
-                    staff_id,
-                    staff_name,
-                    bike,
-                    service_type,
-                    labour
+                    today, staff_id, staff_name, bike, service_type, labour
                 ])
-
                 st.success("✅ Service Report Saved")
                 st.rerun()
-
         else:
             st.info("💻 System Staff ku service entry illa")
 
@@ -311,12 +263,10 @@ if menu == "Admin Login":
     st.subheader("🔐 Admin Login")
 
     if not st.session_state.get("admin_login"):
-
         admin_id = st.text_input("Admin User ID")
         admin_pass = st.text_input("Admin Password", type="password")
 
         if st.button("🔓 Admin Login"):
-
             if admin_id in admin_user and admin_user[admin_id] == admin_pass:
                 st.session_state["admin_login"] = True
                 st.rerun()
@@ -324,18 +274,17 @@ if menu == "Admin Login":
                 st.error("🚫 Invalid Admin Login")
 
     else:
-
         st.success("🔓 Admin Logged In")
 
         if st.button("🔒 Admin Logout"):
-            st.session_state["admin_login"] = False
+            st.session_state.clear()
             st.rerun()
 
         today = today_date()
 
         st.header("📊 Admin Dashboard")
 
-        # ---------------- MARK ABSENT ----------------
+        # Mark Absent
         st.subheader("🚫 Mark Particular Staff Absent")
 
         staff_map = {
@@ -351,104 +300,141 @@ if menu == "Admin Login":
         )
 
         if st.button("🚫 Mark Selected Staff Absent"):
-
             sid = staff_map[selected_absent_staff]
             info = staff_users[sid]
 
-            if already_present_or_halfday(today, sid) or is_absent_today(today, sid):
+            if already_marked(today, sid) or is_absent_today(today, sid):
                 st.warning("⚠️ Today attendance already exists")
             else:
                 attendance_sheet.append_row([
-                    today,
-                    "-",
-                    sid,
-                    info["name"],
-                    info["role"],
-                    "ABSENT"
+                    today, "-", sid, info["name"], info["role"], "ABSENT"
                 ])
                 st.success(f"✅ {selected_absent_staff} marked ABSENT")
                 st.rerun()
 
-        # ---------------- REQUEST APPROVAL ----------------
+        # Approval
         st.subheader("📤 Attendance Requests")
 
-        request_df = safe_df(
-            request_sheet,
-            ["Date", "Staff ID", "Staff Name", "Role", "Request Status"]
-        )
-
-        pending_df = request_df[
-            (request_df["Date"].astype(str) == today) &
-            (request_df["Request Status"].astype(str).str.upper() == "PENDING")
+        rdf = request_df()
+        pending_df = rdf[
+            (rdf["Date"].astype(str) == today) &
+            (rdf["Request Status"].astype(str).str.upper() == "PENDING")
         ]
 
         if pending_df.empty:
             st.info("No pending requests")
         else:
             for i, row in pending_df.iterrows():
-
-                st.write(
-                    f"🔗 {row['Staff Name']} ({row['Staff ID']}) attendance open request"
-                )
-
+                st.write(f"🔗 {row['Staff Name']} ({row['Staff ID']}) attendance open request")
                 if st.button(f"✅ Approve {row['Staff Name']}", key=f"approve_{i}"):
                     request_sheet.update_cell(i + 2, 5, "Approved")
                     st.success("✅ Request Approved")
                     st.rerun()
 
-        # ---------------- SERVICE COUNT ----------------
-        st.subheader("📈 Today Technician Service Count")
+        # Reports
+        adf = attendance_df()
+        sdf = service_df()
 
-        service_df = service_dataframe()
+        st.subheader("📈 Today Technician Service Count & Labour")
 
-        today_service_df = service_df[
-            service_df["Date"].astype(str) == today
-        ]
-
+        today_service = sdf[sdf["Date"].astype(str) == today]
         tech_names = ["Mohan", "Ajay", "Vegadesh"]
 
-        count_rows = []
+        rows = []
         for name in tech_names:
-            staff_df = today_service_df[
-                today_service_df["Staff Name"].astype(str) == name
-            ]
-
-            count_rows.append({
+            temp = today_service[today_service["Staff Name"].astype(str) == name]
+            rows.append({
                 "Technician": name,
-                "Today Bikes": len(staff_df),
-                "Today Labour Amount": staff_df["Labour Amount"].sum()
+                "Today Bikes": len(temp),
+                "Today Labour Amount": temp["Labour Amount"].sum()
             })
 
-        count_df = pd.DataFrame(count_rows)
-
+        count_df = pd.DataFrame(rows)
         st.dataframe(count_df, use_container_width=True)
 
-        total_bikes = count_df["Today Bikes"].sum()
-        total_labour = count_df["Today Labour Amount"].sum()
+        c1, c2 = st.columns(2)
+        c1.metric("🏍️ Total Bikes Today", count_df["Today Bikes"].sum())
+        c2.metric("💸 Total Labour Today", f"₹{count_df['Today Labour Amount'].sum()}")
 
-        col1, col2 = st.columns(2)
-        col1.metric("🏍️ Total Bikes Today", total_bikes)
-        col2.metric("💸 Total Labour Today", f"₹{total_labour}")
+        # Monthly Salary
+        st.subheader("💵 Monthly Salary Report")
 
-        # ---------------- REPORTS ----------------
-        st.subheader("📥 Overall Attendance Report")
+        month_text = st.text_input("Enter Month MM-YYYY", datetime.now().strftime("%m-%Y"))
 
-        attendance_df = safe_df(
-            attendance_sheet,
-            ["Date", "Time", "Staff ID", "Staff Name", "Role", "Status"]
+        monthly_att = filter_by_month(adf, "Date", month_text)
+
+        salary_rows = []
+        per_day_salary = 500
+
+        for sid, info in staff_users.items():
+            temp = monthly_att[monthly_att["Staff ID"].astype(str) == sid]
+            present = len(temp[temp["Status"].astype(str).str.upper().isin(["PRESENT", "LATE PRESENT"])])
+            halfday = len(temp[temp["Status"].astype(str).str.upper() == "HALF DAY LEAVE"])
+            absent_count = len(temp[temp["Status"].astype(str).str.upper() == "ABSENT"])
+
+            salary = (present * per_day_salary) + (halfday * per_day_salary * 0.5)
+
+            salary_rows.append({
+                "Staff Name": info["name"],
+                "Present": present,
+                "Half Day": halfday,
+                "Absent": absent_count,
+                "Salary": salary
+            })
+
+        st.dataframe(pd.DataFrame(salary_rows), use_container_width=True)
+
+        # Filters
+        st.subheader("🔍 Filter Reports")
+
+        filter_staff = st.selectbox("Filter Staff", ["All", "Mohan", "Ajay", "Prathisha", "Vegadesh"])
+        filter_date = st.text_input("Filter Date DD-MM-YYYY", "")
+
+        filtered_att = adf.copy()
+        filtered_ser = sdf.copy()
+
+        if filter_staff != "All":
+            filtered_att = filtered_att[filtered_att["Staff Name"].astype(str) == filter_staff]
+            filtered_ser = filtered_ser[filtered_ser["Staff Name"].astype(str) == filter_staff]
+
+        if filter_date.strip():
+            filtered_att = filtered_att[filtered_att["Date"].astype(str) == filter_date.strip()]
+            filtered_ser = filtered_ser[filtered_ser["Date"].astype(str) == filter_date.strip()]
+
+        st.subheader("📥 Attendance Report")
+        st.dataframe(filtered_att, use_container_width=True)
+
+        st.subheader("🛠️ Service Report")
+        st.dataframe(filtered_ser, use_container_width=True)
+
+        # Download
+        st.download_button(
+            "📥 Download Attendance CSV",
+            data=filtered_att.to_csv(index=False).encode("utf-8"),
+            file_name="attendance_report.csv",
+            mime="text/csv"
         )
 
-        st.dataframe(attendance_df, use_container_width=True)
-
-        st.subheader("🛠️ Overall Service Report")
-
-        st.dataframe(service_df, use_container_width=True)
-
-        csv_service = service_df.to_csv(index=False).encode("utf-8")
-
         st.download_button(
-            "📥 Download Service Report CSV",
-            data=csv_service,
+            "📥 Download Service CSV",
+            data=filtered_ser.to_csv(index=False).encode("utf-8"),
             file_name="service_report.csv",
             mime="text/csv"
-            )
+        )
+
+        # WhatsApp format
+        st.subheader("📤 WhatsApp Daily Report Format")
+
+        whatsapp_text = f"""
+SELVA MOTORS DAILY REPORT
+Date: {today}
+
+Total Bikes: {count_df["Today Bikes"].sum()}
+Total Labour: ₹{count_df["Today Labour Amount"].sum()}
+
+Mohan: {rows[0]["Today Bikes"]} bikes | ₹{rows[0]["Today Labour Amount"]}
+Ajay: {rows[1]["Today Bikes"]} bikes | ₹{rows[1]["Today Labour Amount"]}
+Vegadesh: {rows[2]["Today Bikes"]} bikes | ₹{rows[2]["Today Labour Amount"]}
+"""
+
+        st.text_area("Copy WhatsApp Report", whatsapp_text, height=180)
