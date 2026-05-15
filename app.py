@@ -660,20 +660,3 @@ if menu == "Admin Login":
                     file_name=service_pdf,
                     mime="application/pdf"
                 )
-
-        # WhatsApp format
-        st.subheader("📤 WhatsApp Daily Report Format")
-
-        whatsapp_text = f"""
-SELVA MOTORS DAILY REPORT
-Date: {today}
-
-Total Bikes: {count_df["Today Bikes"].sum()}
-Total Labour: ₹{count_df["Today Labour Amount"].sum()}
-
-Mohan: {rows[0]["Today Bikes"]} bikes | ₹{rows[0]["Today Labour Amount"]}
-Ajay: {rows[1]["Today Bikes"]} bikes | ₹{rows[1]["Today Labour Amount"]}
-Vegadesh: {rows[2]["Today Bikes"]} bikes | ₹{rows[2]["Today Labour Amount"]}
-"""
-
-        st.text_area("Copy WhatsApp Report", whatsapp_text, height=180)
