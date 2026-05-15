@@ -86,12 +86,6 @@ service_sheet = get_sheet("ServiceReport")
 
 request_sheet = get_sheet("AttendanceRequests")
 
-mohan_service_sheet = get_sheet("Mohan_Service")
-
-ajay_service_sheet = get_sheet("Ajay_Service")
-
-vegadesh_service_sheet = get_sheet("Vegadesh_Service")
-
 staff_users = {
     "Staff1": {"password": "1234", "name": "Mohan", "role": "Technician"},
     "Staff2": {"password": "1234", "name": "Ajay", "role": "Technician"},
@@ -505,20 +499,6 @@ if menu == "Admin Login":
         service_df = pd.DataFrame(service_data)
 
         st.dataframe(service_df, use_container_width=True)
-
-        st.header("Technician Wise Service Report")
-
-        selected_technician = st.selectbox(
-            "Select Technician",
-            ["Mohan", "Ajay", "Vegadesh"]
-        )
-
-        tech_sheet = technician_sheets[selected_technician]
-        tech_data = tech_sheet.get_all_records()
-        tech_df = pd.DataFrame(tech_data)
-
-        st.subheader(f"{selected_technician} Service Entries")
-        st.dataframe(tech_df, use_container_width=True)
 
         if not tech_df.empty and "Labour Amount" in tech_df.columns:
             tech_df["Labour Amount"] = pd.to_numeric(
