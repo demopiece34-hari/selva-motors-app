@@ -89,11 +89,11 @@ def today_date():
     return datetime.now().strftime("%d-%m-%Y")
 
 def now_time():
-    return datetime.now().strftime("%H:%M:%S")
+    return datetime.now().strftime("%I:%M:%S %p")
 
 def is_late():
     now = datetime.now()
-    late_time = now.replace(hour=9, minute=30, second=0)
+    late_time = now.replace(hour=9, minute=45, second=0)
     return now > late_time
 
 def attendance_df():
