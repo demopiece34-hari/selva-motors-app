@@ -102,7 +102,7 @@ def attendance_df():
     return safe_df(attendance_sheet, ["Date", "Time", "Staff ID", "Staff Name", "Role", "Status"])
 
 def service_df():
-    df = safe_df(service_sheet, ["Date", "Staff ID", "Staff Name", "Bike Name", "Service Type", "Labour Amount"])
+    df = safe_df(service_sheet, ["Date", "Staff ID", "Staff Name", "reg_no","Bike Name", "Service Type", "Labour Amount"])
     df["Labour Amount"] = pd.to_numeric(df["Labour Amount"], errors="coerce").fillna(0)
     return df
 
@@ -233,6 +233,10 @@ if menu == "Staff Login":
         col2.metric("💵 Today Labour Total", f"₹{today_staff_service['Labour Amount'].sum()}")
 
         if role == "Technician":
+            reg_no = st.text_input(
+                "🔗 Vehicle Reg Number",
+                placeholder="TN 82 AB 1234"
+            )
             bike = st.selectbox("🏍️ Bike Name", [
                 "Passion Plus", "Splendor Plus", "Destiny", "Xoom",
                 "Glamour", "Xtreme", "Super Splendor", "HF Deluxe"
@@ -253,7 +257,7 @@ if menu == "Staff Login":
             if st.button("📤 Save Service Report", disabled=st.session_state["service_lock"]):
                 st.session_state["service_lock"] = True
                 service_sheet.append_row([
-                    today, staff_id, staff_name, bike, service_type, labour
+                    today, staff_id, staff_name, reg_no, bike, service_type, labour
                 ])
                 st.success("✅ Service Report Saved")
                 st.rerun()
